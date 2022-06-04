@@ -1,0 +1,742 @@
+---
+title: "Relatório de dados - Arleia"
+output:
+  html_document:
+    df_print: paged
+  pdf_document: default
+---
+
+```{r include=FALSE}
+library(reshape2)
+library(ggplot2)
+library(psych)
+library(fBasics)
+library(pastecs)
+library(pwr)
+library(rstatix)
+library(ggplot2)
+library(tidyverse)
+library(ggplot2)
+library(datasets)
+library(reshape2)
+library(dplyr)
+library(epitools)
+library(epiR)
+library(kableExtra)
+```
+
+<br>
+
+**Colunas da base de dados**
+
+```{r echo=FALSE}
+df <- readxl::read_excel("Data_Arleia.xlsx")
+
+colnames(df)
+```
+
+**Legenda** - Quadro indicando as variáveis avaliadas durante o estudo. A base de dados inclui informações sobre características sociodemográficas e patológicas das pacientes identificadas com alterações citológicas durante o estudo.
+
+<br>
+
+**Estatística descritiva de cada coluna numérica**
+
+```{r echo=FALSE}
+dd <- select_if(df, is.numeric)
+dd <- dd[,3:21]
+#dd[is.na(dd)] <- 0
+tbldf <- describe(dd, na.rm = T)
+tbldf <- data.frame(tbldf)
+tbldf <- tbldf[,0:10]
+colnms <- c("Variáveis", "N", "Média", "Desvio padrão", 
+            "Mediana", "Média podada", "MAD", "Mínima", 
+            "Máxima", "Intervalo")
+
+colnames(tbldf) <- colnms
+row.names(tbldf)[8] <- "IDADE DA SEXARCA"
+row.names(tbldf)[2] <- "MAIS DE 3 FILHOS"
+row.names(tbldf)[7] <- "USO DE PRESERVATIVOS"
+tbldf<-tbldf[c(1,2,3,5,6,7,8,10:19),c(0,2:4, 8,9)]
+```
+
+```{r echo=FALSE}
+tbldf %>%
+  kbl(caption = "Estatística descritiva dos dados") %>% 
+  kable_classic(full_width = F, html_font = "Cambria") #%>%
+  #row_spec(0, bold = T, color = "black", background = "lightpink")
+```
+
+**Legenda** - Estatística descritiva indicando o número de observações, média, desvio padrão, mínima e máxima. Como se pode observar, dados foram coletados majoritariamente em formato binário (0,1). Exceções são os grupos idade, número de filhos e sexarca.
+
+<br>
+
+**Prevalências na amostra**
+
+```{r include=FALSE}
+total = length(df$`NIC2+`)
+countNIC2 = sum(df$`NIC2+`, na.rm = T)
+res = (countNIC2*100)/total
+glob = (countNIC2*100)/10970
+print(paste("Das pacientes com alteração citológica,", round(res, 2), "% são NIC2+.", "De todas as pacientes atendidas,", round(glob, 2), "% são NIC2+"))
+
+total1 = length(df$`NIC1+`)
+countNIC1 = sum(df$`NIC1+`, na.rm = T)
+res1 = (countNIC1*100)/total1
+glob1 = (countNIC1*100)/10970
+print(paste("Das pacientes com alteração citológica,", round(res1, 2), "% são NIC1+.", "De todas as pacientes atendidas,", round(glob1, 2), "% são NIC1+"))
+
+total3 = length(df$`NIC3+`)
+countNIC3 = sum(df$`NIC3+`, na.rm = T)
+res3 = (countNIC3*100)/total3
+glob3 = (countNIC3*100)/10970
+print(paste("Das pacientes com alteração citológica,", round(res3, 2), "% são NIC3+.", "De todas as pacientes atendidas,", round(glob3, 2), "% são NIC3+"))
+
+totalASCUS = length(df$`ASC-US`)
+countASCUS = sum(df$`ASC-US`, na.rm = T)
+resASCUS = (countASCUS*100)/totalASCUS
+globASCUS = (countASCUS*100)/10970
+print(paste("Das pacientes com alteração citológica,", round(resASCUS, 2), "% são ASC-US+.", "De todas as pacientes atendidas,", round(globASCUS, 2), "% são ASC-US+"))
+
+totalASCH = length(df$`ASC-H`)
+countASCH = sum(df$`ASC-H`, na.rm = T)
+resASCH = (countASCH*100)/totalASCH
+globASCH = (countASCH*100)/10970
+print(paste("Das pacientes com alteração citológica,", round(resASCH, 2), "% são ASC-H+.", "De todas as pacientes atendidas,", round(globASCH, 2), "% são ASC-H+"))
+
+totalAGC = length(df$`AGC`)
+countAGC = sum(df$`AGC`, na.rm = T)
+resAGC = (countAGC*100)/totalAGC
+globAGC = (countAGC*100)/10970
+print(paste("Das pacientes com alteração citológica,", round(resAGC, 2), "% são AGC+.", "De todas as pacientes atendidas,", round(globAGC, 2), "% são AGC+"))
+
+totalHSIL = length(df$`HSIL`)
+countHSIL = sum(df$`HSIL`, na.rm = T)
+resHSIL = (countHSIL*100)/totalHSIL
+globHSIL = (countHSIL*100)/10970
+print(paste("Das pacientes com alteração citológica,", round(resHSIL, 2), "% são HSIL+.", "De todas as pacientes atendidas,", round(globHSIL, 2), "% são HSIL+"))
+
+totalHSILN = length(df$`HSIL NÃO PODENDO EXCLUIR MICROINV`)
+countHSILN = sum(df$`HSIL NÃO PODENDO EXCLUIR MICROINV`, na.rm = T)
+resHSILN = (countHSILN*100)/totalHSILN
+globHSILN = (countHSILN*100)/10970
+print(paste("Das pacientes com alteração citológica,", round(resHSILN, 2), "% são HSIL+ NÃO PODENDO EXCLUIR MICROINVASÃO.", "De todas as pacientes atendidas,", round(globHSILN, 2), "% são HSIL+ NÃO PODENDO EXCLUIR MICROINVASÃO"))
+
+totalLSIL = length(df$`LSIL`)
+countLSIL = sum(df$`LSIL`, na.rm = T)
+resLSIL = (countLSIL*100)/totalLSIL
+globLSIL = (countLSIL*100)/10970
+print(paste("Das pacientes com alteração citológica,", round(resLSIL, 2), "% são LSIL+.", "De todas as pacientes atendidas,", round(globLSIL, 2), "% são LSIL+"))
+
+totalCAINVASOR = length(df$`CA INVASOR`)
+countCAINVASOR = sum(df$`CA INVASOR`, na.rm = T)
+resCAINVASOR = (countCAINVASOR*100)/totalCAINVASOR
+globCAINVASOR = (countCAINVASOR*100)/10970
+print(paste("Das pacientes com alteração citológica,", round(resCAINVASOR, 2), "% são CAINVASOR+.", "De todas as pacientes atendidas,", round(globCAINVASOR, 2), "% são CAINVASOR+"))
+
+totalFUMO = length(df$FUMO)
+countFUMO = sum(df$`FUMO`, na.rm = T)
+resFUMO = (countFUMO*100)/totalFUMO
+globFUMO = (countFUMO*100)/10970
+print(paste("Das pacientes com alteração citológica,", round(globFUMO, 2), "% FUMO+.", "De todas as pacientes atendidas,", round(globFUMO, 2), "% são FUMO+"))
+
+totalACO = length(df$ACO)
+countACO = sum(df$`ACO`, na.rm = T)
+resACO = (countACO*100)/totalACO
+globACO = (countACO*100)/10970
+print(paste("Das pacientes com alteração citológica,", round(resACO, 2), "% são ACO+.", "De todas as pacientes atendidas,", round(globACO, 2), "% são ACO+"))
+
+totalCONDON = length(df$CONDON)
+countCONDON = sum(df$CONDON, na.rm = T)
+resCONDON = (countCONDON*100)/totalCONDON
+globCONDON = (countCONDON*100)/10970
+print(paste("Das pacientes com alteração citológica,", round(resCONDON, 2), "% são CONDON+.", "De todas as pacientes atendidas,", round(globCONDON, 2), "% são CONDON+"))
+
+total3plus = length(df$`> 3 FILHOS`)
+count3plus = sum(df$`> 3 FILHOS`, na.rm = T)
+res3plus = (count3plus*100)/total3plus
+glob3plus = (count3plus*100)/10970
+print(paste("Das pacientes com alteração citológica,", round(res3plus, 2), "% possuem > 3 filhos.", "De todas as pacientes atendidas,", round(glob3plus, 2), "% possuem > 3 filhos"))
+
+totalIMUNOS = length(df$IMUNOS.)
+countIMUNOS = sum(df$IMUNOS., na.rm = T)
+resIMUNOS = (countIMUNOS*100)/totalIMUNOS
+globIMUNOS = (countIMUNOS*100)/10970
+print(paste("Das pacientes com alteração citológica,", round(resIMUNOS, 2), "% são IMUNOS+.", "De todas as pacientes atendidas,", round(globIMUNOS, 2), "% são IMUNOS+"))
+
+length(df$`ALTERAÇÕES CIT.`)*100/10970
+globASCUS+globASCH+globAGC+globHSIL+globLSIL+globCAINVASOR+ globHSILN
+```
+
+```{r echo=FALSE}
+mtx <- matrix(data = c(res,res1,res3,resASCUS,resASCH,resAGC,resHSIL,resLSIL,resCAINVASOR,resFUMO,resACO,resCONDON,res3plus,resIMUNOS,glob,glob1,glob3,globASCUS,globASCH,globAGC,globHSIL,globLSIL,globCAINVASOR,globFUMO,globACO,globCONDON,glob3plus,globIMUNOS), nrow = 14, ncol = 2)
+colnames <- c("Citológico+", "Todas as pacientes")
+rownames <- c("NIC2","NIC1","NIC3","ASC-US", "ASC-H", "AGC", "HSIL", "LSIL", "CA INVASOR", "FUMO", "ACO", "CONDON", "> 3 FILHOS", "IMUNOS")
+colnames(mtx) <- colnames
+rownames(mtx) <- rownames
+mtx <-  data.frame(mtx)
+mtx <- mtx %>% arrange(desc(mtx$Citológico.))
+newrow <- c("LSIL", "ASC-US", "NIC2", "HSIL", "ACO", "> 3 FILHOS", "NIC3", "CONDON", "FUMO", "CA INVASOR", "IMUNOS", "ASC-H", "NIC1", "AGC")
+
+barplot(height = mtx$Citológico., names.arg = newrow, cex.names = .7, las = 2, main = "Prevalência(%) em pacientes citológico+", ylab = "Prevalência(%)")
+```
+
+**Legenda** - Prevalência dos indicadores demográficos e patológicos entre as pacientes citológico+ (n = 217). Nota-se, no gráfico, que mais de um terço das pacientes apresentou positividade para os indicadores LSIL e ASC-US.
+
+<br>
+
+```{r echo=FALSE}
+
+barplot(height = mtx$Todas.as.pacientes, names.arg = newrow, cex.names = .7, las = 2, main = "Prevalência(%) em todas as pacientes", ylab = "Prevalência(%)")
+```
+
+**Legenda** - Prevalência dos indicadores demográficos e patológicos entre todas as pacientes recebidas no atendimento (n = 10970).
+
+<br>
+
+```{r echo=FALSE}
+matx <- matrix(data = c(resASCUS,resASCH,resAGC,resHSIL,resLSIL,resCAINVASOR,resHSILN,globASCUS,globASCH,globAGC,globHSIL,globLSIL,globCAINVASOR, globHSILN), nrow = 7, ncol = 2)
+colnames <- c("Citológico+", "Todas as pacientes")
+rownames <- c("ASC-US", "ASC-H", "AGC", "HSIL", "LSIL", "CA INVASOR", "HSIL-MICRO")
+colnames(matx) <- colnames
+rownames(matx) <- rownames
+matx <-  data.frame(matx)
+matx <- matx %>% arrange(desc(matx$Citológico.))
+newrow <- c("LSIL", "ASC-US", "HSIL", "ASC-H", "CA INVASOR", "AGC", "HSIL-MICRO")
+barplot(height = matx$Citológico., names.arg = newrow, cex.names = .7, las = 2, main = "Prevalência (%) em pacientes citológico+ e na população", ylab = "Prevalência(%)")
+barplot(height = matx$Todas.as.pacientes, names.arg = newrow, cex.names = .7, las = 2, add = TRUE, col = "black")
+text(x = .7, y = 4, "Pop=0.67", cex = .7)
+text(x = .7, y = 30, "Cit=33.64", cex = .7)
+text(x = 1.9, y = 4, "Pop=0.66", cex = .7)
+text(x = 1.9, y = 30, "Cit=33.18", cex = .7)
+text(x = 3.1, y = 4, "Pop=0.42", cex = .7)
+text(x = 3.1, y = 17, "Cit=21.2", cex = .7)
+text(x = 4.3, y = 3, "Pop=0.08", cex = .7)
+text(x = 4.3, y = 10, "Cit=4.15", cex = .7)
+text(x = 5.5, y = 3, "Pop=0.09", cex = .7)
+text(x = 5.5, y = 10, "Cit=4.61", cex = .7)
+text(x = 6.7, y = 4, "Pop=0.05", cex = .7)
+text(x = 6.7, y = 9, "Cit=2.30", cex = .7)
+text(x = 7.9, y = 2, "Pop=0.02", cex = .7)
+text(x = 7.9, y = 7, "Cit=0.92", cex = .7)
+text(x = 6.75, y = 30, "População = 10970", cex = 1)
+text(x = 6.61, y = 27, "Citológico+ = 217", cex = 1)
+text(x = 6.88, y = 24, "Citológico+ (%) = 1.98", cex = 1)
+```
+
+**Legenda** - Prevalência dos indicadores patológicos entre pacientes citológico+ (n = 217, cinza) e todas as pacientes recebidas no atendimento (n = 10970, preto).
+
+<br>
+
+```{r echo=FALSE}
+maatx <- matrix(data = c(res1, res, res3, resCAINVASOR, glob1, glob, glob3, globCAINVASOR), nrow = 4, ncol = 2)
+colnames <- c("Citológico+", "Todas as pacientes")
+rownames <- c("NIC1", "NIC2", "NIC3", "Ca invasor")
+colnames(maatx) <- colnames
+rownames(maatx) <- rownames
+maatx <-  data.frame(maatx)
+maatx <- maatx %>% arrange(desc(maatx$Citológico.))
+newrow <- c("NIC2", "NIC3", "Ca invasor", "NIC1")
+
+barplot(height = maatx$Citológico., names.arg = newrow, cex.names = .7, las = 2, main = "Prevalência (%) em pacientes citológico+ e na população", ylab = "Prevalência(%)")
+barplot(height = maatx$Todas.as.pacientes, names.arg = newrow, cex.names = .7, las = 2, add = TRUE, col = "black")
+text(x = .7, y = 3, "Pop=0.44", cex = .7)
+text(x = .7, y = 18, "Cit=22.12", cex = .7)
+text(x = 1.9, y = 3, "Pop=0.24", cex = .7)
+text(x = 1.9, y = 9, "Cit=11.98", cex = .7)
+text(x = 3.1, y = 2, "Pop=0.09", cex = .7)
+text(x = 3.1, y = 7, "Cit=4.61", cex = .7)
+text(x = 4.3, y = 2, "Pop=0.06", cex = .7)
+text(x = 4.3, y = 5, "Cit=3.23", cex = .7)
+```
+
+**Legenda** - Prevalência dos níveis de lesão NIC1, NIC2, NIC3 e de Câncer invasor entre os pacientes citológico+ (n = 217, cinza) e todas as pacientes recebidas no atendimento (n = 10970, preto).
+
+<br>
+
+```{r echo=FALSE}
+plot_var <- function(df, colnumber, text){
+  dff <- df
+  dff <- data.frame(dff)
+  dff <- filter(dff, dff[,colnumber] == 1)
+
+  par(mfrow = c(1, 3))
+  hist(dff$IDADE, main = paste("Frequências em", text), xlab = "Idade", ylab = "Frequência")
+  hist(dff$Nº.DE.FILHOS, main = paste("Frequências em", text), xlab = "Número de filhos", ylab = "Frequência")
+  hist(dff$SEXARCA.ID.Anos., main = paste("Frequências em", text), xlab = "Idade da sexarca", ylab = "Frequência")
+  par(mfrow = c(1, 1))
+}
+
+plot_var(df = df, colnumber = 18, text = "HSIL-Micro")
+```
+
+```{r echo=FALSE}
+plot_var(df, 9, "ACO")
+```
+
+```{r echo=FALSE}
+plot_var(df, 13, "ASC-US")
+```
+
+```{r echo=FALSE}
+plot_var(df, 14, "ASC-H")
+```
+
+```{r echo=FALSE}
+plot_var(df, 15, "AGC")
+```
+
+```{r echo=FALSE}
+plot_var(df, 16, "LSIL")
+```
+
+```{r echo=FALSE}
+plot_var(df, 17, "HSIL")
+```
+
+```{r echo=FALSE}
+plot_var(df, 19, "CA INVASOR")
+```
+
+```{r echo=FALSE}
+plot_var(df, 20, "NIC2+")
+```
+
+```{r echo=FALSE}
+plot_var(df, 22, "NIC3+")
+```
+
+```{r echo=FALSE}
+plot_var(df, 23, "NIC1+")
+```
+
+**Legenda** - Distribuição de frequências do marcador [NOME DO MARCADOR] de acordo com os parâmetros "idade", "número de filhos" e "sexarca". [MESMA LEGENDA PARA TODAS AS FIGURAS SIMILARES - NÃO ESTÃO PRESENTES NESTE RELATÓRIO].
+
+<br>
+
+**Tabela de prevalências**
+
+```{r echo=FALSE}
+markers <- c("> 3 FILHOS", 
+             "IMUNOS", 
+             "CONDON", 
+             "ACO", 
+             "FUMO", 
+             "CAINVASOR", 
+             "LSIL", 
+             "HSIL", 
+             "AGC", 
+             "ASC-H", 
+             "ASC-US", 
+             "NIC2", 
+             "NIC1", 
+             "NIC3")
+values <- c(round(c(res3plus, 
+            resIMUNOS, 
+            resCONDON, 
+            resACO, 
+            resFUMO, 
+            resCAINVASOR, 
+            resLSIL, 
+            resHSIL, 
+            resAGC, 
+            resASCH, 
+            resASCUS, 
+            res, 
+            res1, 
+            res3), 2))
+vaglob <- c(round(c(glob3plus, 
+                    globIMUNOS, 
+                    globCONDON, 
+                    globACO, 
+                    globFUMO, 
+                    globCAINVASOR, 
+                    globLSIL, 
+                    globHSIL, 
+                    globAGC, 
+                    globASCH, 
+                    globASCUS, 
+                    glob, 
+                    glob1, 
+                    glob3), 2))
+colnames = c("Marcadores", "Prevalência(%) - Citopatológico+", "Prevalência(%) - Todas as pacientes")
+dt <- tibble::tibble(markers, values, vaglob)
+colnames(dt) <- colnames
+tbldt <- dt %>% arrange(desc(dt$`Prevalência(%) - Citopatológico+`))
+
+tbldt %>%
+  kbl(caption = "Tabela de prevalências") %>% 
+  kable_classic(full_width = F, html_font = "Cambria")
+```
+
+**Legenda** - Tabela de prevalências globais (toda a população) e amostrais (pacientes citológico+) para os indicadores demográficos e patológicos do estudo.
+
+<br>
+
+```{r echo=FALSE}
+table_var <- function(df, colnumber){
+  dff <- df
+  dff <- data.frame(dff)
+  dff <- filter(dff, dff[,colnumber] == 1)
+  
+  a <- round(sum(dff$FUMO, na.rm = T)*100/sum(dff[,colnumber]), 2)
+  print("Fumo")
+  print(a)
+  b <- round(sum(dff$IMUNOS., na.rm = T)*100/sum(dff[,colnumber]), 2)
+  print("Imuno")
+  print(b)
+  c <- round(sum(dff$ACO, na.rm = T)*100/sum(dff[,colnumber]), 2)
+  print("Contra")
+  print(c)
+  d <- round(sum(dff$CONDON, na.rm = T)*100/sum(dff[,colnumber]), 2)
+  print("Preserv")
+  print(d)
+  e <- round(sum(dff$X..3.FILHOS, na.rm = T)*100/sum(dff[,colnumber]), 2)
+  print("Maisde3")
+  print(e)
+}
+
+rownam = c("Fumo", "Imunossupressão", "Contraceptivos", "Preservativo", "Mais de 3 filhos")
+colnam = c("LSIL", 
+           "ASC-US", 
+           "NIC2",
+           "HSIL", 
+           "ASC-H", 
+           "Ca invasor", 
+           "AGC", 
+           "HSIL-Micro",
+           "NIC3",
+           "NIC1")
+mlsil <- matrix(data = c(5.48, 4.11, 17.81, 16.44, 5.48, 
+                         2.78, 6.94, 20.83, 8.33, 19.44,
+                         12.77, 4.26, 31.91, 4.26, 21.28,
+                         8.89, 0, 26.67, 4.44, 24.44, 
+                         0, 0, 45.45, 0, 36.36, 
+                         20, 10, 10, 0, 20, 
+                         0, 20, 20, 0, 20,
+                         50, 0, 50, 0, 50,
+                         3.85, 0, 46.15, 3.85, 11.54, 
+                         0, 0, 14.29, 0, 0), nrow = 5, ncol = 10)
+
+rownames(mlsil) <- rownam
+colnames(mlsil) <- colnam
+mlsil <- data.frame(mlsil)
+tblsil <- mlsil %>% arrange(desc(mlsil$LSIL))
+tblsil %>%
+  kbl(caption = "Perfil epidemiológico das variáveis - Prevalência (%) em pacientes citológico +") %>% 
+  kable_classic(full_width = F, html_font = "Cambria")
+```
+
+**Legenda** - Perfil epidemiológico do grupo citológico+ em relação aos indicadores "Contraceptivos", "Preservativo", "Fumo", "Mais de 3 filhos" e "Imunossupressão".
+
+<br>
+
+**Frequências**
+
+```{r echo=FALSE}
+hist(df$IDADE, 
+     main = "Distribuição de frequências das idades - Citopatológico+",
+     xlab = "Idade", 
+     ylab = "Frequência")
+```
+
+```{r echo=FALSE}
+ftr <- df
+ftr <- data.frame(ftr)
+ftr <- filter(ftr, NIC2. > 0)
+hist(ftr$IDADE, 
+     main = "Distribuição de frequências das idades - Citopatológico+/NIC2+", 
+     xlab = "Idade", 
+     ylab = "Frequência")
+```
+
+```{r echo=FALSE}
+hist(df$`Nº DE FILHOS`, 
+     main = "Distribuição de frequências do número de filhos - Citopatológico+", 
+     xlab = "Filhos", 
+     ylab = "Frequência")
+```
+
+```{r echo=FALSE}
+hist(ftr$Nº.DE.FILHOS, 
+     main = "Distribuição de frequências do nº de filhos - Citopatológico+/NIC2+", 
+     xlab = "Filhos", 
+     ylab = "Frequência")
+```
+
+```{r echo=FALSE}
+hist(df$`SEXARCA ID/Anos)`, 
+     main = "Distribuição de frequências da sexarca - Citopatológico+", 
+     xlab = "Idade", 
+     ylab = "Frequência")
+```
+
+```{r echo=FALSE}
+hist(ftr$SEXARCA.ID.Anos., 
+     main = "Distribuição de frequências da sexarca - Citopatológico+/NIC2+", 
+     xlab = "Idade", 
+     ylab = "Frequência")
+```
+
+**Legenda** - Distribuição de frequências de idade, número de filhos e sexarca nos pacientes citológico+ e nos pacientes citológico+ E NIC2+ (gráficos distintos).
+
+<br>
+
+**Estimativas de odds ratio para NIC2+**
+
+```{r include=FALSE}
+OR_NIC2 <- function(df, colnumber){
+
+ftr <- df
+ftr <- data.frame(ftr)
+ftr <- filter(ftr, ftr[,colnumber] == 0)
+
+length(ftr[,colnumber])
+posneg <- sum(ftr$NIC2., na.rm = T)
+negneg <- length(ftr[,colnumber]) - sum(ftr$NIC2., na.rm = T)
+
+ftr <- df
+ftr <- data.frame(ftr)
+ftr <- filter(ftr, ftr[,colnumber] == 1)
+
+length(ftr[,colnumber])
+pospos <- sum(ftr$NIC2., na.rm = T)
+negpos <- length(ftr[,colnumber]) - sum(ftr$NIC2., na.rm = T)
+
+rownames <- c("MARCADOR+", "MARCADOR-")
+colnames <- c("NIC2+", "NIC2-")
+mt <- matrix(c(pospos, negpos, posneg, negneg), nrow = 2, ncol = 2)
+rownames(mt) <- rownames
+colnames(mt) <- colnames
+
+epi.2by2(dat = mt, method = "cohort.count", conf.level = 0.95, interpret = T)
+}
+print("> 3 FILHOS+")
+OR_NIC2(df = df, colnumber = 5)
+```
+
+```{r include=FALSE}
+print("IMUNOS+")
+OR_NIC2(df = df, colnumber = 7)
+```
+
+```{r include=FALSE}
+print("FUMO+")
+OR_NIC2(df = df, colnumber = 8)
+```
+
+```{r include=FALSE}
+print("ACO+")
+OR_NIC2(df = df, colnumber = 9)
+```
+
+```{r include=FALSE}
+print("CONDON+")
+OR_NIC2(df = df, colnumber = 10)
+```
+
+```{r include=FALSE}
+print("ASC-US+")
+OR_NIC2(df = df, colnumber = 13)
+```
+
+```{r include=FALSE}
+print("ASC-H+")
+OR_NIC2(df = df, colnumber = 14)
+```
+
+```{r include=FALSE}
+print("AGC+")
+OR_NIC2(df = df, colnumber = 15)
+```
+
+```{r include=FALSE}
+print("LSIL+")
+OR_NIC2(df = df, colnumber = 16)
+```
+
+```{r include=FALSE}
+print("HSIL+")
+OR_NIC2(df = df, colnumber = 17)
+```
+
+```{r include=FALSE}
+print("HSIL NÃO PODENDO EXCLUIR MICROINV+")
+OR_NIC2(df = df, colnumber = 18)
+```
+
+```{r include=FALSE}
+print("CA INVASOR+")
+OR_NIC2(df = df, colnumber = 19)
+```
+
+```{r echo=FALSE}
+grupo <- c("> 3 FILHOS+", 
+           "IMUNOS+", 
+           "FUMO+", 
+           "ACO+", 
+           "CONDON+", 
+           "ASC-US+", 
+           "ASC-H+", 
+           "AGC+", 
+           "LSIL+", 
+           "HSIL+", 
+           "HSIL/MICROINV+", 
+           "CA INVASOR+")
+
+OR <- c(1.13, 
+        1.42, 
+        3.67, 
+        2.03, 
+        0.27, 
+        0.03, 
+        3.05, 
+        0.88, 
+        0.09, 
+        15.94, 
+        3.55, 
+        16.70)
+
+ORCI <- c("0.50, 2.59", 
+          "0.25, 7.91", 
+          "1.12, 12.07", 
+          "0.88, 4.68", 
+          "0.05, 1.42", 
+          "0.00, 0.22", 
+          "0.79, 11.85", 
+          "0.10, 8.04", 
+          "0.03, 0.32", 
+          "7.31, 34.73", 
+          "0.22, 57.89", 
+          "3.41, 81.68")
+
+fisher <- c(0.831, 
+            0.652, 
+            "0.035*", 
+            0.128, 
+            0.166, 
+            "<0.001*", 
+            0.106, 
+            1.000, 
+            "<0.001*", 
+            "<0.001*", 
+            0.396, 
+            "<0.001*")
+
+RR <- c(1.11, 
+        1.36, 
+        3.08, 
+        1.52, 
+        0.40, 
+        0.05, 
+        2.88, 
+        0.88, 
+        0.15, 
+        6.60, 
+        3.50, 
+        14.08)
+
+RRCI <- c("0.58, 2.09", 
+          "0.31, 6.02", 
+          "1.13, 8.40", 
+          "0.96, 2.40", 
+          "0.11, 1.48", 
+          "0.01, 0.35", 
+          "0.80, 10.29", 
+          "0.10, 7.69", 
+          "0.05, 0.46", 
+          "3.94, 11.05", 
+          "0.22, 54.92", 
+          "3.09, 64.13")
+
+colnam <- c("Grupo x NIC2", 
+            "Razão de chances", 
+            "IC 95% - Razão de chances", 
+            "Fisher - Pr>chi2", 
+            "Risco relativo", 
+            "IC 95% - Risco relativo")
+
+tblor <- cbind(grupo, OR, ORCI, fisher, RR, RRCI)
+tblor <- data.frame(tblor)
+colnames(tblor) <- colnam
+tblor <- tblor[,0:4]
+
+tblor %>%
+  kbl(caption = "Tabela de odds ratio para NIC2+") %>% 
+  kable_classic(full_width = F, html_font = "Cambria")
+```
+
+<br>
+
+```{r echo=FALSE}
+boxLabels <- c("CA INVASOR+",
+               "HSIL+",
+               "FUMO+",
+               "HSIL/MICROINV+",
+               "ASC-H+",
+               "ACO+",
+               "IMUNOS+",
+               "> 3 FILHOS+",
+               "AGC+",
+               "CONDON+",
+               "LSIL+",
+               "ASC-US+")
+
+df <- data.frame(yAxis = length(boxLabels):1,
+  boxOdds = 
+   log10(c(16.70,
+           15.94,
+           3.67,
+           3.55,
+           3.05,
+           2.03,
+           1.42,
+           1.13,
+           0.88,
+           0.27,
+           0.09,
+           0.03)),
+  
+  boxCILow = 
+   log10(c(3.41,
+           7.31,
+           1.12,
+           0.22,
+           0.79,
+           0.88,
+           0.25,
+           0.50,
+           0.10,
+           0.05,
+           0.03, 
+           0.004)),
+  
+  boxCIHigh = 
+  log10(c(81.68,
+          34.73,
+          12.07,
+          57.89,
+          11.85,
+          4.68,
+          7.91,
+          2.59,
+          8.04,
+          1.42,
+          0.32,
+          0.22))
+)
+
+df %>%
+  mutate(name = fct_reorder(boxLabels, desc(boxOdds))) %>%
+  ggplot(aes(x = boxOdds, y = reorder(boxLabels, boxOdds))) + 
+  geom_vline(aes(xintercept = 0), size = .25, linetype = 'dashed') +
+  geom_errorbarh(aes(xmax = boxCIHigh, xmin = boxCILow), size = .5, height = .2, color = 'gray50') +
+  geom_point(size = 3.5, color = 'black') +
+  theme_bw() +
+  theme(panel.grid.minor = element_blank()) +
+  scale_x_continuous(breaks = seq(-1,1,1)) +
+  ylab('') +
+  xlab('Razão das chances (log10)') + 
+  ggtitle('Razão das chances: fatores do estudo x NIC2+')
+```
+
+**Legenda** - Tabela de razão das chances (*odds ratio*) e intervalo de confiança 95% indicando as chances da presença de NIC2+ entre os expostos aos respectivos indicadores patológicos/demográficos. Junto às medidas de *odds ratio*, a coluna "Fisher Pr\>chi2" indica o resultado do teste exato de Fisher a nível de confiança = 95%. Como se oberva na tabela, Pr\>chi2 \< 0,05 em FUMO+, ASC-US+, LSIL+, HSIL+ e CA INVASOR+. O gráfico (abaixo), apresenta as respectivas razões das chances (log10) e seus intervalos de confiança.
